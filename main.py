@@ -343,5 +343,25 @@ async def resetwarning(ctx, userId):
         warnning.remove(userId)
     log(f"Removed warning : {member.name}", 3)
     await ctx.send(f"{member.name}의 경고를 삭제했습니다")
+    
+@bot.command()
+async def how(ctx):
+    await ctx.message.delete()
+    msg = '''
+    **For everone**
+./banlist : 차단리스트 보기
+./hello : 인사받기
+./app (타입) (파트) (유튜브링크) : Maker 신청하기
+ 예) ./app 레이 5 youtu.be/test
+./blockword :  금지어 확인(욕설주의)
+    
+**For Maker**
+./smlay : ./smlay help로 자세하게 확인가능
+./smdesign : ./smdesign help로 자세하게 확인가능
+    
+**For whitelist**
+안알려줌'''
+    await ctx.message.author.send(msg)
+    log(f"Show help to {ctx.message.author.name}")
 
 bot.run(token)
