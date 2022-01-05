@@ -1,52 +1,86 @@
-from logging import warn
 import discord
 import os
 import sys
+from datetime import datetime
 from discord.ext import commands
 
 token = open("token", 'r').read()
-
-whiteList = []
-makers = []
-warnning = []
 intents = discord.Intents.all()
 bot = commands.Bot(command_prefix='./', intents=intents)
 
-ids = [927804798563156028, 927811839335727107] #submit, application
-blockWord = open("blockWord", "r", encoding="utf-8").read().split("//")
-
 def log(content, level=0):
+    time = datetime.now()
     if level == 0:
-        print(f"[INFO] {content}")
+        type = "INFO"
     elif level == 1:
-        print(f"[ERR] {content}")
+        type = "ERROR"
     elif level == 2:
-        print(f"[IMPORTANT] {content}")
+        type = "IMPORTANT"
+    elif level == 3:
+        type = "WARN"
+    print(f"[{time.strftime('%H:%M:%S')}] [{type}] {content}")
 
-def saveBlockWord(list):
+def saveAsFile(name, list):
     fileContent = ""
     for word in list:
         fileContent += f"{word}//"
     fileContent = fileContent.rstrip("//")
-    with open("blockWord", "w", encoding="utf-8") as file:
+    with open(name, "w", encoding="utf-8") as file:
         file.write(fileContent)
+    log(f"{name} saved")
 
-def saveWarnning(list):
-    fileContent = ""
-    for word in list:
-        fileContent += f"{word}//"
-    fileContent = fileContent.rstrip("//")
-    with open("warnning", "w", encoding="utf-8") as file:
-        file.write(fileContent)
+def loadFromFile(name, num=False):
+    list = []
+    content = open(name, 'r', encoding="utf-8").read().split("//")
+    log(f"{name} loaded")
+    if num == False:
+        for id in content:
+            member = bot.get_user(int(id))
+            if member != None:
+                list.append(member)
+    else:
+        return content
+    return list    
 
 @bot.event
 async def on_ready():
+    global blockWord, whiteList, makers, warnning, channels
+    print("<Seeyou Bot Runner v1.0>")
+    date = datetime.now()
+    print(f"Start running at [{date.strftime('%B, %d / %Y')}]")
+    log("Loading data...")
+    if os.path.isfile("blockWord"):
+        blockWord = open("blockWord", "r", encoding="utf-8").read().split("//")
+    else:
+        blockWord = []
+    if os.path.isfile("whiteList"):
+       whiteList =  loadFromFile("whiteList")
+    else:
+        log("No whitelist. Is it okay?", 3)
+        whiteList = []
+    if os.path.isfile("makers"):
+        makers = loadFromFile("makers")
+    else:
+        makers = []
+    if os.path.isfile("warnning"):
+        warnning = loadFromFile("warnning")
+    else:
+        warnning = []
+    if os.path.isfile("channels"):
+        channels = []
+        ids = loadFromFile("channels", 1) #submit, application, main
+        for id in ids:
+            channels.append(bot.get_channel(int(id)))
+        if len(channels) < 3:
+            log(f"This bot needs 3 channels, Detected channels : {len(channels)}", 1)
+            sys.exit(1)
+    else:
+        log("Cant load the channel IDs!", 1)
+        sys.exit(1)
     log("BOT START!")
     log(f"Logged in as {bot.user.name}")
     log(f"Bot's ID is {bot.user.id}")
     print('='*20)
-    whiteList.append(bot.get_user(557927301522915338))
-    whiteList.append(bot.get_user(819356866017493052))
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -62,15 +96,15 @@ async def on_message(message):
     if message.content in blockWord:
         await message.delete()
         await message.author.send("금지어를 사용하셨습니다! +1 경고 / 3번 경고시 차단됩니다")
-        warnning.append(message.author)
+        warnning.append(message.author.id)
         log(f"{message.author} used block word : {message.content}")
-    if warnning.count(message.author) >= 3:
+    if warnning.count(message.author.id) >= 3:
         await message.author.ban()
         reason = "금지어 3번 사용"
-        message.channel.send(f"{message.author}(이)가 차단됐습니다.\n사유 : {reason}")
+        await channels[2].send(f"{message.author.name}(이)가 차단됐습니다.\n사유 : {reason}")
         log(f"{message.name} was banned. The reason is {reason}")
-        while not message.author in warnning:
-            warnning.remove(message.author)
+        while message.author.id in warnning:
+            warnning.remove(message.author.id)
 
 @bot.command()
 async def ban(ctx, userId, reason="없음"):
@@ -85,7 +119,8 @@ async def ban(ctx, userId, reason="없음"):
         await ctx.send("없는 멤버입니다")
         return 0
     await ctx.guild.ban(user, reason=reason)
-    ctx.send(f"{user.name}(이)가 차단됐습니다.\n사유 : {reason}")
+    await ctx.send(f"{user.name}(이)가 차단됐습니다.\n사유 : {reason}")
+    await channels[2].send(f"{user.name}(이)가 차단됐습니다.\n사유 : {reason}")
     log(f"{user.name} was banned. The reason is {reason}")
 
 @bot.command()
@@ -95,12 +130,12 @@ async def unban(ctx, userId):
         await ctx.message.delete()
         return 0
     banlist = await ctx.guild.bans()
-    user = bot.get_user(int(userId))
-    if user == None:
+    member = bot.get_user(int(userId))
+    if member == None:
         await ctx.send("없는 멤버입니다")
         return 0
-    username = user.name
-    usernum = user.discriminator
+    username = member.name
+    usernum = member.discriminator
     for ban_entry in banlist:
         user = ban_entry.user
         if (user.name, user.discriminator) == (username, usernum):
@@ -135,10 +170,10 @@ async def smlay(ctx, part, mapid=None, mappw="없음", link=None, comment="없�
 이런식으로 입력하시면 됩니다'''
         await ctx.message.author.send(msg)
         return 0
-    if not bot.get_user(ctx.message.author.id) in makers:
+    if not ctx.message.author.id in makers:
         await ctx.message.author.send("아직 등록할 수 없습니다")
         return 0
-    if int(part) <= 19 or int(part) <= 0:
+    if int(part) >= 19 or int(part) <= 0:
         await ctx.message.author.send("파트를 확인해주세요")
         return 0
     if mapid == None:
@@ -155,8 +190,7 @@ ID : {mapid}
 비밀번호 : {mappw}
 **<전하는 말>**
 {comment}'''
-    submitChannel = bot.get_channel(ids[0])
-    await submitChannel.send(msg)
+    await channels[0].send(msg)
     await ctx.message.author.send("성공적으로 등록됐습니다!")
     log(f"Part #{part} layout submited, Maker : {ctx.message.author.name}")
 
@@ -175,7 +209,7 @@ async def smdesign(ctx, part, mapid=None, mappw="없음", link=None, comment="�
 '''
         await ctx.message.author.send(msg)
         return 0
-    if not ctx.message.author in makers:
+    if not ctx.message.author.id in makers:
         await ctx.message.author.send("아직 등록할 수 없습니다")
         return 0
     if int(part) <= 19 or int(part) <= 1:
@@ -194,8 +228,7 @@ ID : {mapid}
 비밀번호 : {mappw}
 **<전하는 말>**
 {comment}'''
-    submitChannel = bot.get_channel(ids[0])
-    await submitChannel.send(msg)
+    await channels[0].send(msg)
     log(f"Part #{part} design submited, Maker : {ctx.message.author.name}")
 
 @bot.command()
@@ -207,8 +240,7 @@ async def app(ctx, type, part, link=None):
     msg = f'''**<{type} 신청함 [{ctx.message.author.name}]>
 Part #{part}**
 {link}'''
-    appChannel = bot.get_channel(ids[1])
-    await appChannel.send(msg)
+    await channels[1].send(msg)
     log(f"{ctx.message.author.name} applied for registration")
 
 @bot.command()
@@ -221,11 +253,13 @@ async def cancel(ctx, userId):
     if member == None:
         await ctx.send("없는 멤버입니다")
         return 0
-    if not member in makers:
+    if not userId in makers:
         await ctx.send("Maker가 아닌 멤버입니다")
-    makers.remove(member)
+    makers.remove(userId)
     await ctx.send(f"{member.name}는 이제 Maker가 아닙니다")
+    await member.send("Maker에서 제거되셨습니다")
     log(f"Removed Maker : {member.name}")
+    saveAsFile("makers", makers)
 
 @bot.command()
 async def submit(ctx, userId):
@@ -237,13 +271,14 @@ async def submit(ctx, userId):
     if member == None:
         await ctx.send("없는 멤버입니다")
         return 0
-    if member in makers:
-        await ctx.send("이미 추가되있습니다")
+    if userId in makers:
+        await ctx.send("이미 Maker 입니다")
         return 0
-    makers.append(member)
-    await ctx.send(f"{member.name}이(가) Maker에 추가되었습니다")
-    await member.send("이제 등록할 수 있습니다!")
+    makers.append(userId)
+    await ctx.send(f"{member.name}이(가) Maker에 추가됐습니다")
+    await member.send("Maker가 되셨습니다!")
     log(f"New Maker : {member.name}")
+    saveAsFile("makers", makers)
 
 @bot.command()
 async def maker(ctx):
@@ -268,9 +303,13 @@ async def addblock(ctx, word):
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
-    blockWord.append(word)
-    saveBlockWord(blockWord)
-    log(f"New block word : {word}")
+    if not word in blockWord:
+        await ctx.send(f"{word}은(는) 이제 금지어 입니다")
+        blockWord.append(word)
+        saveAsFile("blockWord", blockWord)
+        log(f"New block word : {word}")
+    else:
+        await ctx.send("중복된 단어입니다")
 
 @bot.command()
 async def rmblock(ctx, word):
@@ -278,22 +317,31 @@ async def rmblock(ctx, word):
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
-    blockWord.remove(word)
-    saveBlockWord(blockWord)
-    log(f"Removed block word : {word}")
+    if word in blockWord:
+        blockWord.remove(word)
+        saveAsFile("blockWord", blockWord)
+        log(f"Removed block word : {word}")
+        await ctx.send(f"{word}은(는) 이제 금지어가 아닙니다")
+    else:
+        await ctx.send("금지어가 아닙니다")
 
 @bot.command()
 async def blockword(ctx):
-    await ctx.message.author.send(blockWord)
+    if len(blockWord) != 0:
+        await ctx.message.author.send(blockWord)
+    else:
+        await ctx.message.author.send("금지어가 없습니다")
     log(f"Show block words to {ctx.message.author.name}")
 
 @bot.command()
-async def resetwarnning(ctx, userId):
+async def resetwarning(ctx, userId):
     member = bot.get_user(int(userId))
     if member == None:
         await ctx.send("없는 멤버입니다")
         return 0
-    while not member in warnning:
-        warnning.remove(member)
+    while userId in warnning:
+        warnning.remove(userId)
+    log(f"Removed warning : {member.name}", 3)
+    await ctx.send(f"{member.name}의 경고를 삭제했습니다")
 
 bot.run(token)
