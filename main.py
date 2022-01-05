@@ -29,18 +29,13 @@ def saveAsFile(name, list):
         file.write(fileContent)
     log(f"{name} saved")
 
-def loadFromFile(name, num=False):
+def loadFromFile(name):
     list = []
     content = open(name, 'r', encoding="utf-8").read().split("//")
     log(f"{name} loaded")
-    if num == False:
-        for id in content:
-            member = bot.get_user(int(id))
-            if member != None:
-                list.append(member)
-    else:
-        return content
-    return list    
+    for id in content:
+        list.append(int(id))
+    return list
 
 @bot.event
 async def on_ready():
@@ -68,7 +63,7 @@ async def on_ready():
         warnning = []
     if os.path.isfile("channels"):
         channels = []
-        ids = loadFromFile("channels", 1) #submit, application, main
+        ids = loadFromFile("channels") #submit, application, main
         for id in ids:
             channels.append(bot.get_channel(int(id)))
         if len(channels) < 3:
@@ -109,7 +104,7 @@ async def on_message(message):
 @bot.command()
 async def ban(ctx, userId, reason="없음"):
     print(ctx)
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -125,7 +120,7 @@ async def ban(ctx, userId, reason="없음"):
 
 @bot.command()
 async def unban(ctx, userId):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot. That member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -159,6 +154,7 @@ async def banlist(ctx):
 @bot.command()
 async def smlay(ctx, part, mapid=None, mappw="없음", link=None, comment="없음"):
     await ctx.message.delete()
+    print(ctx.message.author.id)
     if part == "help":
         msg = '''등록하는 방법은 다음과 같습니다.
 ```./smlay 파트번호, 맵ID, 복사비번, 유튜브링크```
@@ -245,7 +241,7 @@ Part #{part}**
 
 @bot.command()
 async def cancel(ctx, userId):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -263,7 +259,7 @@ async def cancel(ctx, userId):
 
 @bot.command()
 async def submit(ctx, userId):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -282,7 +278,7 @@ async def submit(ctx, userId):
 
 @bot.command()
 async def maker(ctx):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -299,7 +295,7 @@ async def hello(ctx):
 
 @bot.command()
 async def addblock(ctx, word):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -313,7 +309,7 @@ async def addblock(ctx, word):
 
 @bot.command()
 async def rmblock(ctx, word):
-    if not ctx.message.author in whiteList:
+    if not ctx.message.author.id in whiteList:
         log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
         await ctx.message.delete()
         return 0
@@ -335,6 +331,10 @@ async def blockword(ctx):
 
 @bot.command()
 async def resetwarning(ctx, userId):
+    if not ctx.message.author.id in whiteList:
+        log(f"Not whitelisted member tried to use this bot\nThat member is {ctx.message.author}")
+        await ctx.message.delete()
+        return 0
     member = bot.get_user(int(userId))
     if member == None:
         await ctx.send("없는 멤버입니다")
