@@ -1,2 +1,4 @@
 # NoVillain
-당신의 서버 지킴이
+사설 서버에서 사용중
+
+Made by discord.py
